@@ -1,6 +1,8 @@
 import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT
 import System.Random
+import Control.Monad
+import Control.Monad.State
 
 type Coord a = (a,a)
 type Tri a = (Coord a, Coord a, Coord a)
@@ -14,6 +16,20 @@ instance (Random a, Random b) => Random (a,b) where
 		let (a1, gen2) = random gen1;
 			(a2, gen3) = random gen2;
 		in ((a1, a2), gen3)
+
+instance Random a => Random (Color4 a) where
+	randomR ((Color4 r1 g1 b1 a1),(Color4 r2 g2 b2 a2)) gen0 =
+		let (r,gen1) = randomR (r1,r2) gen0;
+			(g,gen2) = randomR (g1,g2) gen1;
+			(b,gen3) = randomR (b1,b2) gen2;
+			(a,gen4) = randomR (a1,a2) gen3;
+		in ((Color4 r g b a), gen4)
+	random gen0 =
+		let (r,gen1) = random gen0;
+			(g,gen2) = random gen1;
+			(b,gen3) = random gen2;
+			(a,gen4) = random gen3;
+		in ((Color4 r g b a), gen4)
 
 {-
 	(-1,1) ------------------------ (1,1)
@@ -29,6 +45,12 @@ instance (Random a, Random b) => Random (a,b) where
 	(-1,-1) ------------------------ (1,-1)
 -}
 
+--stateful randomness
+srandom :: Random a => State StdGen a
+srandom = state random
+
+srandomR :: Random a => (a, a) -> State StdGen a
+srandomR range = state $ randomR range
 
 -- Draws a red triangle based on 3 points
 drawTri :: Tri Float -> Color4 GLfloat -> IO ()
@@ -46,30 +68,21 @@ drawRandomTri gen0 = do
 	drawTri tri col
 	return gen2
 
-
-randomCoord :: StdGen -> (Coord Float, StdGen)
-randomCoord gen = ((randomR ((-1.0,-1.0),(1.0,1.0)) gen) :: (Coord Float, StdGen))
+-- Generate n random objects within a certain range, given a generator
+nrandomsR :: Random a => Int -> StdGen -> (a,a) -> ([a], StdGen)
+nrandomsR n gen range = runState (replicateM n randWithRange) gen
+	where randWithRange = srandomR range
 
 randomTri :: StdGen -> (Tri Float, StdGen)
-randomTri gen0 =
-	let (c0, gen1) = randomCoord gen0;
-		(c1, gen2) = randomCoord gen1;
-		(c2, gen3) = randomCoord gen2;
-	in ((c0, c1, c2), gen3)
-
-randomColor3 :: StdGen -> (Color3 GLfloat, StdGen)
-randomColor3 gen0 =
-	let (r, gen1) = (randomR (0.0, 1.0) gen0) :: (GLfloat, StdGen);
-		(g, gen2) = (randomR (0.0, 1.0) gen1) :: (GLfloat, StdGen);
-		(b, gen3) = (randomR (0.0, 1.0) gen2) :: (GLfloat, StdGen);
-	in ((Color3 r g b), gen3)
+randomTri gen = 
+	let ([c0, c1, c2], gen1) = nrandomsR 3 gen ((-1.0,-1.0),(1.0,1.0))
+	in ((c0,c1,c2), gen1)
 
 randomColor4 :: StdGen -> (Color4 GLfloat, StdGen)
-randomColor4 gen0 =
-	let ((Color3 r g b), gen1) = randomColor3 gen0;
-		(a, gen2) = (randomR (0.0, 1.0) gen1) :: (GLfloat, StdGen);
-	in ((Color4 r g b a), gen2)
-
+randomColor4 gen0 = randomR (zeros,ones) gen0
+	where
+		zeros = Color4 0 0 0 0 :: Color4 GLfloat
+		ones = Color4 1 1 1 1 :: Color4 GLfloat
 
 main :: IO ()
 main = do
