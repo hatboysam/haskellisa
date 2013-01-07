@@ -39,50 +39,51 @@ drawTri ((x1,y1), (x2,y2), (x3,y3)) col = do
 		vertex $ (Vertex3 (x2 :: GLfloat) (y2 :: GLfloat) 0)
 		vertex $ (Vertex3 (x3 :: GLfloat) (y3 :: GLfloat) 0)
 
-drawRandomTri :: StdGen -> IO ()
-drawRandomTri gen = do
-	(tri, gen) <- randomTri gen
-	(col, gen) <- randomColor4 gen
+drawRandomTri :: StdGen -> IO (StdGen)
+drawRandomTri gen0 = do
+	let (tri, gen1) = randomTri gen0
+	let (col, gen2) = randomColor4 gen1
 	drawTri tri col
+	return gen2
 
 
-randomCoord :: StdGen -> IO ((Coord Float, StdGen))
-randomCoord gen = do
-	return ((randomR ((-1.0,-1.0),(1.0,1.0)) gen) :: (Coord Float, StdGen))
+randomCoord :: StdGen -> (Coord Float, StdGen)
+randomCoord gen = ((randomR ((-1.0,-1.0),(1.0,1.0)) gen) :: (Coord Float, StdGen))
 
-randomTri :: StdGen -> IO ((Tri Float, StdGen))
-randomTri gen0 = do
-	(c0, gen1) <- randomCoord gen0
-	(c1, gen2) <- randomCoord gen1
-	(c2, gen3) <- randomCoord gen2
-	return ((c0, c1, c2), gen3)
+randomTri :: StdGen -> (Tri Float, StdGen)
+randomTri gen0 =
+	let (c0, gen1) = randomCoord gen0;
+		(c1, gen2) = randomCoord gen1;
+		(c2, gen3) = randomCoord gen2;
+	in ((c0, c1, c2), gen3)
 
-randomColor3 :: StdGen -> IO ((Color3 GLfloat, StdGen))
-randomColor3 gen0 = do
-	let (r, gen1) = (randomR (0.0, 1.0) gen0) :: (GLfloat, StdGen)
-	let (g, gen2) = (randomR (0.0, 1.0) gen1) :: (GLfloat, StdGen)
-	let (b, gen3) = (randomR (0.0, 1.0) gen2) :: (GLfloat, StdGen)
-	return ((Color3 r g b), gen3)
+randomColor3 :: StdGen -> (Color3 GLfloat, StdGen)
+randomColor3 gen0 =
+	let (r, gen1) = (randomR (0.0, 1.0) gen0) :: (GLfloat, StdGen);
+		(g, gen2) = (randomR (0.0, 1.0) gen1) :: (GLfloat, StdGen);
+		(b, gen3) = (randomR (0.0, 1.0) gen2) :: (GLfloat, StdGen);
+	in ((Color3 r g b), gen3)
 
-randomColor4 :: StdGen -> IO (Color4 GLfloat, StdGen)
-randomColor4 gen0 = do
-	((Color3 r g b), gen1) <- randomColor3 gen0
-	let (a, gen2) = (randomR (0.0, 1.0) gen1) :: (GLfloat, StdGen)
-	return ((Color4 r g b a), gen2)
+randomColor4 :: StdGen -> (Color4 GLfloat, StdGen)
+randomColor4 gen0 =
+	let ((Color3 r g b), gen1) = randomColor3 gen0;
+		(a, gen2) = (randomR (0.0, 1.0) gen1) :: (GLfloat, StdGen);
+	in ((Color4 r g b a), gen2)
 
 
 main :: IO ()
 main = do
-		(pname, _) <- getArgsAndInitialize
-		createWindow $ "Haskellisa"
-		displayCallback $= display
-		mainLoop
+	(pname, _) <- getArgsAndInitialize
+	createWindow $ "Haskellisa"
+	displayCallback $= display
+	mainLoop
 
 display :: IO ()
 display = do
-		clear [ ColorBuffer ]
-		-- Test Random Code
-		gen <- getStdGen
-		drawRandomTri gen
-		-- End Random Code
-		flush
+	clear [ ColorBuffer ]
+	-- Test Random Code
+	gen0 <- getStdGen
+	gen1 <- drawRandomTri gen0
+	gen2 <- drawRandomTri gen1
+	-- End Random Code
+	flush
