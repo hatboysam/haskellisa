@@ -52,7 +52,6 @@ srandom = state random
 srandomR :: Random a => (a, a) -> State StdGen a
 srandomR range = state $ randomR range
 
--- Draws a red triangle based on 3 points
 drawTri :: Tri Float -> Color4 GLfloat -> IO ()
 drawTri ((x1,y1), (x2,y2), (x3,y3)) col = do
 	renderPrimitive Triangles $ do
@@ -78,25 +77,40 @@ randomTri gen =
 	let ([c0, c1, c2], gen1) = nrandomsR 3 gen ((-1.0,-1.0),(1.0,1.0))
 	in ((c0,c1,c2), gen1)
 
+randomTris :: StdGen -> Int -> ([Tri Float], StdGen)
+randomTris gen n = (groupThrees pointlist, gen1)
+	where
+		(pointlist, gen1) = nrandomsR (3*n) gen ((-1.0,-1.0),(1.0,1.0))
+		groupThrees (a:b:c:xs) = (a,b,c):(groupThrees xs)
+		groupThrees [] = []
+
+zeros :: Color4 GLfloat
+zeros = Color4 0 0 0 0
+
+ones :: Color4 GLfloat
+ones = Color4 1 1 1 1
+
 randomColor4 :: StdGen -> (Color4 GLfloat, StdGen)
 randomColor4 gen0 = randomR (zeros,ones) gen0
-	where
-		zeros = Color4 0 0 0 0 :: Color4 GLfloat
-		ones = Color4 1 1 1 1 :: Color4 GLfloat
+
+randomColor4s :: StdGen -> Int -> ([Color4 GLfloat], StdGen)
+randomColor4s gen0 n = nrandomsR n gen0 (zeros,ones)
 
 main :: IO ()
 main = do
 	(pname, _) <- getArgsAndInitialize
 	createWindow $ "Haskellisa"
+	blend $= Enabled
+	blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
 	displayCallback $= display
 	mainLoop
 
 display :: IO ()
 display = do
 	clear [ ColorBuffer ]
-	-- Test Random Code
 	gen0 <- getStdGen
-	gen1 <- drawRandomTri gen0
-	gen2 <- drawRandomTri gen1
-	-- End Random Code
+	let (tris,gen1) = randomTris gen0 10
+	let (cols,gen2) = randomColor4s gen1 10
+	let triColPairs = zip tris cols
+	mapM_ (\(tri, col) -> drawTri tri col) triColPairs
 	flush
