@@ -3,10 +3,24 @@ import Graphics.UI.GLUT
 import System.Random
 import Control.Monad
 import Control.Monad.State
+import Foreign
+import Data.Word
+import System.IO
+import System.Directory
 
 type Coord a = (a,a)
 type Tri a = (Coord a, Coord a, Coord a)
 type GenState = State StdGen
+
+data Pixel = Pixel {
+	r :: Word8,
+	g :: Word8,
+	b :: Word8,
+	a :: Word8
+} deriving (Eq)
+
+instance Show Pixel where
+	show (Pixel r g b a) = "("++(show r)++","++(show g)++","++(show b)++","++(show a)++")"
 
 -- Random Tuples
 instance (Random a, Random b) => Random (a,b) where
@@ -144,6 +158,26 @@ display = do
 	mapM_ (\(tri, col) -> drawTri tri col) triColPairs
 	flush
 
+getScreenPixels :: IO [Pixel]
+getScreenPixels = do
+	pointer <- mallocForeignPtrArray (10 * 10) :: IO (ForeignPtr Word32)
+	withForeignPtr pointer $ \ptr -> do
+		let pos = Position 200 200
+		let siz = Size 10 10
+		readPixels pos siz $ PixelData RGBA UnsignedInt ptr
+		arr <- peekArray (10 * 10) ptr
+		return (map pixel arr)
+
+-- Construct a Pixel from an RGBA Word32
+pixel :: Word32 -> Pixel
+pixel word = Pixel (extract 3) (extract 2) (extract 1) (extract 0)
+    where extract idx = fromIntegral $ (word `shiftR` (idx * 8)) .&. 0xFF
+
+
+-- Refresh on click
 keyboardMouse :: Key -> KeyState -> Modifiers -> Position -> IO ()
-keyboardMouse k ks m p = do
-	display
+keyboardMouse (MouseButton LeftButton) Up _ _ = display
+keyboardMouse (SpecialKey KeyDown) Up _ _ = do
+	arr <- getScreenPixels
+	print arr
+keyboardMouse _ _ _ _ = do { return () }
